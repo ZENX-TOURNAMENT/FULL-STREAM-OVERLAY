@@ -16,7 +16,7 @@ const path = require('path');
 const https = require('https');
 const http = require('http');
 
-const OVERLAY_SERVER_HOST = 'http://localhost:25565';
+const OVERLAY_SERVER_HOST = process.argv[2] || process.env.OVERLAY_HOST || 'http://localhost:25565';
 const LOCKFILE_PATH = path.join(
     process.env.LOCALAPPDATA || 'C:\\Users\\' + (process.env.USERNAME || '') + '\\AppData\\Local',
     'Riot Games',
