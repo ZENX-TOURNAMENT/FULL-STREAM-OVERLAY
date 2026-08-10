@@ -72,19 +72,22 @@ function postToOverlay(endpoint, body) {
     return new Promise((resolve) => {
         const data = new URLSearchParams(body).toString();
         const url = new URL(endpoint, OVERLAY_SERVER_HOST);
+        const isHttps = url.protocol === 'https:';
+        const client = isHttps ? https : http;
 
         const options = {
             hostname: url.hostname,
-            port: url.port || 25565,
+            port: url.port || (isHttps ? 443 : 80),
             path: url.pathname,
             method: 'POST',
+            rejectUnauthorized: false,
             headers: {
                 'Content-Type': 'application/x-www-form-urlencoded',
                 'Content-Length': Buffer.byteLength(data)
             }
         };
 
-        const req = http.request(options, (res) => {
+        const req = client.request(options, (res) => {
             let resData = '';
             res.on('data', chunk => resData += chunk);
             res.on('end', () => resolve(resData));
