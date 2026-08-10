@@ -2,11 +2,12 @@
  * Automated Real-time VALORANT & Tracker Fetcher Service
  * 
  * Fully Autonomous:
- * 1. Auto-detects in-game Custom Matches & Tournament Mode.
- * 2. Auto-extracts Player Names & Clan Tags (e.g. [FNC], [SEN], [PRX]) to deduce Team 1 & Team 2.
- * 3. Auto-resolves Team Logos from built-in Pro Team Registry or generates high-res team badge.
- * 4. Auto-detects Map, Round Number, Live Scores, Spike Plants/Defuses.
- * 5. Auto-detects all 10 Player Agents and updates the 10-Player Stats HUD in real-time.
+ * 1. Auto-detects Riot Client & in-game VALORANT process status.
+ * 2. Auto-detects Live Matches, Custom Tournaments, Agent Selection & Menus.
+ * 3. Auto-extracts Player Names & Clan Tags (e.g. [FNC], [SEN], [PRX]) to deduce Team 1 & Team 2.
+ * 4. Auto-resolves Team Logos from built-in Pro Team Registry or generates high-res team badge.
+ * 5. Auto-detects Map, Round Number, Live Scores, Spike Plants/Defuses.
+ * 6. Supports both Local In-Game Client connection and Cloud HenrikDev API.
  */
 
 const fs = require('fs');
@@ -91,24 +92,33 @@ const MAP_PATH_MAP = {
     "jam": "lotus",
     "pitt": "pearl",
     "juliett": "sunset",
-    "infinity": "abyss"
+    "infinity": "abyss",
+    "hurm": "district",
+    "kasbah": "kasbah",
+    "drift": "drift",
+    "pia": "glitch"
 };
 
 class ValorantLiveService {
     constructor(dataBus, io) {
         this.dataBus = dataBus;
         this.io = io;
-        this.autoFetchEnabled = true;
-        this.fetchMode = 'local'; // 'local' or 'cloud'
-        this.cloudRiotId = '';
-        this.cloudApiKey = '';
-        this.lockManualTeamInfo = false; // When true, manual team names & logos won't be overwritten by in-game tags
-        
+
+        // Load saved auto-fetch settings from appConfig if available
+        const saved = (this.dataBus && this.dataBus.config && this.dataBus.config.appConfig && this.dataBus.config.appConfig.auto_fetch) || {};
+        this.autoFetchEnabled = typeof saved.enabled === 'boolean' ? saved.enabled : true;
+        this.fetchMode = saved.mode || 'local'; // 'local' or 'cloud'
+        this.cloudRiotId = saved.riot_id || '';
+        this.cloudApiKey = saved.api_key || '';
+        this.lockManualTeamInfo = typeof saved.lock_manual_teams === 'boolean' ? saved.lock_manual_teams : false;
+
         this.localLockfile = null;
-        this.localTokens = null;
+        this.clientDetected = false;
+        this.gameRunning = false;
+        this.inGame = false;
         this.activeMatchId = null;
         this.detectedRegion = 'na';
-        this.currentStatusText = 'Scanning for VALORANT client...';
+        this.currentStatusText = 'Initializing automated VALORANT fetcher...';
 
         this.lockfilePath = path.join(
             process.env.LOCALAPPDATA || 'C:\\Users\\' + (process.env.USERNAME || '') + '\\AppData\\Local',
@@ -126,9 +136,12 @@ class ValorantLiveService {
             autoFetchEnabled: this.autoFetchEnabled,
             fetchMode: this.fetchMode,
             cloudRiotId: this.cloudRiotId,
+            cloudApiKey: this.cloudApiKey,
             lockManualTeamInfo: this.lockManualTeamInfo,
             statusText: this.currentStatusText,
-            clientDetected: !!this.localLockfile,
+            clientDetected: this.clientDetected,
+            gameRunning: this.gameRunning,
+            inGame: this.inGame,
             activeMatchId: this.activeMatchId
         };
     }
@@ -139,9 +152,26 @@ class ValorantLiveService {
         if (typeof riotId === 'string') this.cloudRiotId = riotId.trim();
         if (typeof apiKey === 'string') this.cloudApiKey = apiKey.trim();
         if (typeof lockTeams === 'boolean') this.lockManualTeamInfo = lockTeams;
+
+        // Persist to disk via dataBus
+        if (this.dataBus && typeof this.dataBus.saveAutoFetchConfig === 'function') {
+            this.dataBus.saveAutoFetchConfig({
+                enabled: this.autoFetchEnabled,
+                mode: this.fetchMode,
+                riot_id: this.cloudRiotId,
+                api_key: this.cloudApiKey,
+                lock_manual_teams: this.lockManualTeamInfo
+            });
+        }
+
+        if (!this.autoFetchEnabled) {
+            this.currentStatusText = 'Auto-fetch paused (Disabled in settings)';
+        } else {
+            this.currentStatusText = 'Settings updated. Checking game state...';
+        }
+
         return this.getStatus();
     }
-
 
     startLoop() {
         setInterval(async () => {
@@ -152,10 +182,10 @@ class ValorantLiveService {
 
             if (this.fetchMode === 'local') {
                 await this.pollLocalClient();
-            } else if (this.fetchMode === 'cloud' && this.cloudRiotId) {
+            } else if (this.fetchMode === 'cloud') {
                 await this.pollCloudApi();
             }
-        }, 1000);
+        }, 1200);
     }
 
     // --- Automatic In-Game Live Match Data Capture ---
@@ -163,71 +193,101 @@ class ValorantLiveService {
         this.localLockfile = this.readLockfile();
 
         if (!this.localLockfile) {
-            this.currentStatusText = 'Waiting for VALORANT to be running on PC...';
-            this.localTokens = null;
+            this.clientDetected = false;
+            this.gameRunning = false;
+            this.inGame = false;
+            this.currentStatusText = 'Waiting for Riot Client / VALORANT to be running...';
             return;
         }
+
+        this.clientDetected = true;
 
         try {
             // 1. Get Live In-Game Presence (Map, Party Score, Enemy Score, In-Game state)
             const presenceData = await this.makeLocalRiotRequest('/chat/v4/presences');
-            
-            if (presenceData && presenceData.presences) {
-                let inGame = false;
 
-                for (const p of presenceData.presences) {
-                    if (p.product === 'valorant' && p.private) {
-                        try {
-                            const rawPrivate = Buffer.from(p.private, 'base64').toString('utf8');
-                            const priv = JSON.parse(rawPrivate);
+            if (!presenceData || presenceData.errorCode || !presenceData.presences) {
+                // Riot Client is running, but chat service is 503 / game not yet running / logging in
+                this.gameRunning = false;
+                this.inGame = false;
+                this.currentStatusText = 'Riot Client active. Launch VALORANT to begin live match sync.';
+                return;
+            }
 
-                            if (priv.sessionLoopState === 'INGAME') {
-                                inGame = true;
-                                const t1Score = parseInt(priv.partyOwnerMatchScore) || 0;
-                                const t2Score = parseInt(priv.partyOwnerMatchScoreEnemy) || 0;
-                                const rawMap = (priv.matchMap || '').toLowerCase();
-                                
-                                let detectedMap = 'lotus';
-                                for (const key in MAP_PATH_MAP) {
-                                    if (rawMap.includes(key)) {
-                                        detectedMap = MAP_PATH_MAP[key];
-                                        break;
-                                    }
+            let foundValorantPresence = false;
+            let inGameMatch = false;
+
+            for (const p of presenceData.presences) {
+                if (p.product === 'valorant' && p.private) {
+                    foundValorantPresence = true;
+                    this.gameRunning = true;
+
+                    try {
+                        const rawPrivate = Buffer.from(p.private, 'base64').toString('utf8');
+                        const priv = JSON.parse(rawPrivate);
+
+                        if (priv.sessionLoopState === 'INGAME') {
+                            inGameMatch = true;
+                            this.inGame = true;
+
+                            const t1Score = parseInt(priv.partyOwnerMatchScore) || 0;
+                            const t2Score = parseInt(priv.partyOwnerMatchScoreEnemy) || 0;
+                            const rawMap = (priv.matchMap || '').toLowerCase();
+
+                            let detectedMap = 'sunset';
+                            for (const key in MAP_PATH_MAP) {
+                                if (rawMap.includes(key)) {
+                                    detectedMap = MAP_PATH_MAP[key];
+                                    break;
                                 }
+                            }
 
-                                const roundNum = t1Score + t2Score + 1;
-                                const isTournament = (priv.provisioningFlow === 'CustomGame');
-                                
-                                this.currentStatusText = `LIVE ${isTournament ? 'TOURNAMENT' : 'MATCH'}: ${detectedMap.toUpperCase()} | Round ${roundNum} (${t1Score} - ${t2Score})`;
+                            const roundNum = t1Score + t2Score + 1;
+                            const isTournament = (priv.provisioningFlow === 'CustomGame');
 
-                                // Auto update game state
+                            this.currentStatusText = `LIVE ${isTournament ? 'TOURNAMENT' : 'MATCH'}: ${detectedMap.toUpperCase()} | Round ${roundNum} (${t1Score} - ${t2Score})`;
+
+                            // Update Game State in DataBus
+                            if (this.dataBus && this.dataBus.config && this.dataBus.config.gameState) {
                                 this.dataBus.config.gameState.round_number = roundNum;
                                 this.dataBus.config.gameState.team_1_score = t1Score;
                                 this.dataBus.config.gameState.team_2_score = t2Score;
                                 this.dataBus.config.gameState.switch_sides = (roundNum > 12 && roundNum <= 24) || (roundNum > 24 && roundNum % 2 === 0);
 
-                                // Save & broadcast
+                                if (this.dataBus.config.gameState.game_flow && this.dataBus.config.gameState.game_flow.map_1) {
+                                    this.dataBus.config.gameState.game_flow.map_1.map = detectedMap;
+                                }
+
                                 this.dataBus.saveStateToFile('gameState.json', this.dataBus.config.gameState);
                                 if (this.io) {
                                     this.io.emit('stateUpdate', this.dataBus.getGameState());
                                 }
-
-                                // 2. Extract 10-Player Names, Clan Tags, and Agents
-                                await this.extractLivePlayersAndTeams();
-                                break;
-                            } else if (priv.sessionLoopState === 'PREGAME') {
-                                inGame = true;
-                                this.currentStatusText = 'Tournament Lobby: Agent Selection Active (Pre-Game)';
-                                break;
-                            } else if (priv.sessionLoopState === 'MENUS') {
-                                this.currentStatusText = 'VALORANT Client Online (In Menus/Custom Lobby)';
                             }
-                        } catch (e) {}
-                    }
+
+                            // Extract 10-Player Names, Clan Tags, and Agents
+                            await this.extractLivePlayersAndTeams();
+                            break;
+                        } else if (priv.sessionLoopState === 'PREGAME') {
+                            inGameMatch = true;
+                            this.inGame = false;
+                            this.currentStatusText = 'Tournament Lobby: Agent Selection Active (Pre-Game)';
+                            await this.extractLivePlayersAndTeams();
+                            break;
+                        } else if (priv.sessionLoopState === 'MENUS') {
+                            this.inGame = false;
+                            this.currentStatusText = 'VALORANT Online (In Menus / Custom Lobby)';
+                        }
+                    } catch (e) {}
                 }
             }
+
+            if (!foundValorantPresence) {
+                this.gameRunning = false;
+                this.inGame = false;
+                this.currentStatusText = 'Riot Client active. Launch VALORANT or log in to sync.';
+            }
         } catch (err) {
-            this.currentStatusText = `Syncing live match state...`;
+            this.currentStatusText = 'Syncing live match state...';
         }
     }
 
@@ -237,7 +297,7 @@ class ValorantLiveService {
             // Get local session info & friend/lobby presences
             const session = await this.makeLocalRiotRequest('/chat/v1/session');
             const presences = await this.makeLocalRiotRequest('/chat/v4/presences');
-            
+
             let allPlayerNames = [];
 
             if (session && session.game_name) {
@@ -270,8 +330,8 @@ class ValorantLiveService {
 
         for (const name of names) {
             // Check for tags like [TAG], (TAG), or TAG_
-            const match = name.match(/^\[([A-Za-z0-9]{2,5})\]/i) || 
-                          name.match(/^\(([A-Za-z0-9]{2,5})\)/i) || 
+            const match = name.match(/^\[([A-Za-z0-9]{2,5})\]/i) ||
+                          name.match(/^\(([A-Za-z0-9]{2,5})\)/i) ||
                           name.match(/^([A-Za-z0-9]{2,4})[_\s]/i);
 
             if (match && match[1]) {
@@ -292,6 +352,7 @@ class ValorantLiveService {
 
     // Apply High-Resolution Logo & Branding from Pro Team Registry or Auto-Badge
     applyTeamBranding(teamKey, tag) {
+        if (!this.dataBus || !this.dataBus.config || !this.dataBus.config.gameState) return;
         const team = this.dataBus.config.gameState[teamKey];
         if (!team) return;
 
@@ -304,7 +365,6 @@ class ValorantLiveService {
             // Custom Clan / Amateur Team -> Generate clean custom logo
             team.abbreviation = tag;
             team.team_info = "Tournament Team";
-            // Use custom high-contrast SVG badge
             team.icon_link = `https://api.dicebear.com/7.x/identicon/svg?seed=${tag}&backgroundColor=141824`;
         }
 
@@ -323,7 +383,7 @@ class ValorantLiveService {
                     return {
                         name: parts[0],
                         pid: parts[1],
-                        port: parts[2],
+                        port: parseInt(parts[2]),
                         password: parts[3],
                         protocol: parts[4]
                     };
@@ -333,8 +393,8 @@ class ValorantLiveService {
         return null;
     }
 
-    makeLocalRiotRequest(endpoint) {
-        return new Promise((resolve, reject) => {
+    makeLocalRiotRequest(endpoint, method = 'GET', body = null) {
+        return new Promise((resolve) => {
             if (!this.localLockfile) return resolve(null);
 
             const auth = Buffer.from(`riot:${this.localLockfile.password}`).toString('base64');
@@ -342,8 +402,9 @@ class ValorantLiveService {
                 hostname: '127.0.0.1',
                 port: this.localLockfile.port,
                 path: endpoint,
-                method: 'GET',
+                method: method,
                 rejectUnauthorized: false,
+                timeout: 3000,
                 headers: {
                     'Authorization': `Basic ${auth}`,
                     'Content-Type': 'application/json'
@@ -355,14 +416,28 @@ class ValorantLiveService {
                 res.on('data', chunk => data += chunk);
                 res.on('end', () => {
                     try {
-                        resolve(JSON.parse(data));
+                        const parsed = JSON.parse(data);
+                        if (res.statusCode >= 400) {
+                            resolve({ errorCode: 'HTTP_ERROR', statusCode: res.statusCode, data: parsed });
+                        } else {
+                            resolve(parsed);
+                        }
                     } catch (e) {
                         resolve(data);
                     }
                 });
             });
 
-            req.on('error', (err) => resolve(null));
+            req.on('timeout', () => {
+                req.destroy();
+                resolve(null);
+            });
+
+            req.on('error', () => resolve(null));
+
+            if (body) {
+                req.write(typeof body === 'string' ? body : JSON.stringify(body));
+            }
             req.end();
         });
     }
@@ -370,31 +445,48 @@ class ValorantLiveService {
     // --- Cloud HenrikDev API Poller ---
     async pollCloudApi() {
         if (!this.cloudRiotId || !this.cloudRiotId.includes('#')) {
+            this.clientDetected = false;
+            this.gameRunning = false;
+            this.inGame = false;
             this.currentStatusText = 'Please enter a valid Riot ID (e.g. Username#TAG)';
             return;
         }
 
+        if (!this.cloudApiKey || this.cloudApiKey.trim() === '') {
+            this.clientDetected = false;
+            this.gameRunning = false;
+            this.inGame = false;
+            this.currentStatusText = 'HenrikDev API key required for Cloud Mode. Enter key below or switch to Local Client mode.';
+            return;
+        }
+
         const [name, tag] = this.cloudRiotId.split('#');
-        const url = `https://api.henrikdev.xyz/valorant/v1/live-match/${encodeURIComponent(name)}/${encodeURIComponent(tag)}`;
+        const url = `https://api.henrikdev.xyz/valorant/v1/live-match/${encodeURIComponent(name.trim())}/${encodeURIComponent(tag.trim())}`;
 
         try {
             const data = await this.makeHttpsGet(url, this.cloudApiKey);
             if (data && data.data) {
                 const match = data.data;
-                const mapName = (match.map || 'ascent').toLowerCase();
+                const mapName = (match.map || 'sunset').toLowerCase();
                 const t1Score = match.team_1_score || 0;
                 const t2Score = match.team_2_score || 0;
                 const roundNum = t1Score + t2Score + 1;
 
+                this.clientDetected = true;
+                this.gameRunning = true;
+                this.inGame = true;
                 this.currentStatusText = `CLOUD API LIVE: ${mapName.toUpperCase()} | Round ${roundNum} (${t1Score}-${t2Score})`;
 
-                this.dataBus.config.gameState.round_number = roundNum;
-                this.dataBus.config.gameState.team_1_score = t1Score;
-                this.dataBus.config.gameState.team_2_score = t2Score;
-                this.dataBus.saveStateToFile('gameState.json', this.dataBus.config.gameState);
+                if (this.dataBus && this.dataBus.config && this.dataBus.config.gameState) {
+                    this.dataBus.config.gameState.round_number = roundNum;
+                    this.dataBus.config.gameState.team_1_score = t1Score;
+                    this.dataBus.config.gameState.team_2_score = t2Score;
+                    this.dataBus.config.gameState.switch_sides = (roundNum > 12 && roundNum <= 24) || (roundNum > 24 && roundNum % 2 === 0);
+                    this.dataBus.saveStateToFile('gameState.json', this.dataBus.config.gameState);
 
-                if (this.io) {
-                    this.io.emit('stateUpdate', this.dataBus.getGameState());
+                    if (this.io) {
+                        this.io.emit('stateUpdate', this.dataBus.getGameState());
+                    }
                 }
 
                 // Parse and update ALL 10 PLAYERS in the match
@@ -406,7 +498,7 @@ class ValorantLiveService {
                         const isBlue = (p.team === 'Blue' || p.team === 'team_1');
                         const pObj = {
                             username: p.name || `Player`,
-                            agent: p.character || 'jett',
+                            agent: (p.character || 'jett').toLowerCase(),
                             health: typeof p.health !== 'undefined' ? p.health : 100,
                             shield: typeof p.shield !== 'undefined' ? p.shield : 50,
                             weapon: (p.weapon || 'vandal').toLowerCase(),
@@ -430,42 +522,76 @@ class ValorantLiveService {
                         this.io.emit('playerUpdate', this.dataBus.config.players);
                     }
                 }
+            } else if (data && (data.status === 401 || (data.errors && data.errors[0]?.message?.toLowerCase().includes('unauthorized')))) {
+                this.clientDetected = false;
+                this.gameRunning = false;
+                this.inGame = false;
+                this.currentStatusText = 'Cloud API: Invalid API Key. Enter a free key from api.henrikdev.xyz/dashboard or use Local Client mode.';
+            } else if (data && data.status === 404) {
+                this.clientDetected = true;
+                this.gameRunning = false;
+                this.inGame = false;
+                this.currentStatusText = `Cloud API: Player ${this.cloudRiotId} is not in an active live match`;
+            } else if (data && data.errors) {
+                this.clientDetected = false;
+                this.gameRunning = false;
+                this.inGame = false;
+                this.currentStatusText = `Cloud API: ${data.errors[0]?.message || 'API query error'}`;
             } else {
+                this.clientDetected = true;
+                this.gameRunning = false;
+                this.inGame = false;
                 this.currentStatusText = `Cloud API: Player ${this.cloudRiotId} in Lobby / Not in Live Match`;
             }
         } catch (e) {
-            this.currentStatusText = `Cloud API query error: ${e.message}`;
+            this.currentStatusText = `Cloud API notice: ${e.message || 'Connecting to API...'}`;
         }
     }
 
-
     makeHttpsGet(urlStr, apiKey) {
-        return new Promise((resolve, reject) => {
-            const parsed = new URL(urlStr);
-            const headers = { 'User-Agent': 'HelValorant-Overlay-Host' };
-            if (apiKey) headers['Authorization'] = apiKey;
+        return new Promise((resolve) => {
+            try {
+                const parsed = new URL(urlStr);
+                const headers = { 
+                    'User-Agent': 'HelValorant-Overlay-Host',
+                    'Accept': 'application/json'
+                };
+                if (apiKey) headers['Authorization'] = apiKey.trim();
 
-            const options = {
-                hostname: parsed.hostname,
-                path: parsed.pathname + parsed.search,
-                method: 'GET',
-                headers
-            };
+                const options = {
+                    hostname: parsed.hostname,
+                    path: parsed.pathname + parsed.search,
+                    method: 'GET',
+                    timeout: 5000,
+                    headers
+                };
 
-            const req = https.request(options, (res) => {
-                let data = '';
-                res.on('data', chunk => data += chunk);
-                res.on('end', () => {
-                    try {
-                        resolve(JSON.parse(data));
-                    } catch (e) {
-                        resolve(null);
-                    }
+                const req = https.request(options, (res) => {
+                    let data = '';
+                    res.on('data', chunk => data += chunk);
+                    res.on('end', () => {
+                        try {
+                            const json = JSON.parse(data);
+                            if (res.statusCode >= 400 && !json.status) {
+                                json.status = res.statusCode;
+                            }
+                            resolve(json);
+                        } catch (e) {
+                            resolve({ status: res.statusCode, raw: data });
+                        }
+                    });
                 });
-            });
 
-            req.on('error', err => resolve(null));
-            req.end();
+                req.on('timeout', () => {
+                    req.destroy();
+                    resolve(null);
+                });
+
+                req.on('error', () => resolve(null));
+                req.end();
+            } catch (err) {
+                resolve(null);
+            }
         });
     }
 }

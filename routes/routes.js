@@ -5,9 +5,15 @@ const router = express.Router();
 const multer = require('multer');
 const upload = multer();
 const fileLoader = require('../fileLoader');
-
-const dataBus = new fileLoader();
+let dataBus = new fileLoader();
 dataBus.init('./config');
+
+function setDataBus(instance) {
+    if (instance) {
+        dataBus = instance;
+    }
+}
+router.setDataBus = setDataBus;
 
 // Helper to broadcast socket events safely
 function emitEvent(req, eventName, payload) {
@@ -410,15 +416,22 @@ router.get('/get_auto_fetch_status', (req, res) => {
     if (liveService) {
         return res.status(200).send(liveService.getStatus());
     }
-    return res.status(200).send({ autoFetchEnabled: false, statusText: 'Live service offline' });
+    return res.status(200).send({
+        autoFetchEnabled: false,
+        statusText: 'Live service offline',
+        clientDetected: false,
+        gameRunning: false,
+        inGame: false
+    });
 });
 
 router.post('/set_auto_fetch_config', upload.none(), (req, res) => {
-    const { enabled, mode, riotId, apiKey } = req.body;
+    const { enabled, mode, riotId, apiKey, lockTeams } = req.body;
     const liveService = req.app.get('liveService');
     if (liveService) {
         const isEnabled = (enabled === 'true' || enabled === true);
-        const updated = liveService.updateConfig(isEnabled, mode, riotId, apiKey);
+        const isLock = (typeof lockTeams !== 'undefined') ? (lockTeams === 'true' || lockTeams === true) : undefined;
+        const updated = liveService.updateConfig(isEnabled, mode, riotId, apiKey, isLock);
         return res.status(200).send({ status: true, config: updated });
     }
     return res.status(500).send({ status: false, message: 'Live service not initialized' });

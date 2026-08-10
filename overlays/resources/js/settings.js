@@ -1,13 +1,14 @@
 class AdminSettingsManager {
     constructor() {
         this.simInterval = null;
+        this.hasLoadedInitialValues = false;
     }
 
     async init() {
         this.bindEvents();
         await this.loadTokens();
-        await this.loadAutoFetchStatus();
-        setInterval(() => this.loadAutoFetchStatus(), 1500);
+        await this.loadAutoFetchStatus(true);
+        setInterval(() => this.loadAutoFetchStatus(false), 1200);
     }
 
     bindEvents() {
@@ -16,9 +17,18 @@ class AdminSettingsManager {
         document.getElementById('start-sim-btn')?.addEventListener('click', () => this.startDemoSimulation());
         document.getElementById('stop-sim-btn')?.addEventListener('click', () => this.stopDemoSimulation());
         document.getElementById('save-auto-fetch-btn')?.addEventListener('click', () => this.saveAutoFetchConfig());
+        document.getElementById('auto-fetch-mode')?.addEventListener('change', (e) => this.onModeChange(e.target.value));
     }
 
-    async loadAutoFetchStatus() {
+    onModeChange(mode) {
+        const cloudGroup = document.getElementById('cloud-riot-group');
+        const apiGroup = document.getElementById('cloud-api-key-group');
+        const isCloud = (mode === 'cloud');
+        if (cloudGroup) cloudGroup.style.opacity = isCloud ? '1' : '0.4';
+        if (apiGroup) apiGroup.style.opacity = isCloud ? '1' : '0.4';
+    }
+
+    async loadAutoFetchStatus(isInitial = false) {
         try {
             const res = await fetch('../get_auto_fetch_status');
             if (res.status === 200) {
@@ -26,21 +36,59 @@ class AdminSettingsManager {
                 const statusEl = document.getElementById('live-sync-status-text');
                 const badge = document.getElementById('auto-sync-badge');
 
-                if (statusEl) statusEl.textContent = data.statusText || 'Ready';
+                // On first load, synchronize form controls with saved backend config
+                if (isInitial && !this.hasLoadedInitialValues) {
+                    this.hasLoadedInitialValues = true;
+                    const toggleEl = document.getElementById('auto-fetch-toggle');
+                    const modeEl = document.getElementById('auto-fetch-mode');
+                    const riotIdEl = document.getElementById('cloud-riot-id');
+                    const apiKeyEl = document.getElementById('cloud-api-key');
+
+                    if (toggleEl && typeof data.autoFetchEnabled === 'boolean') {
+                        toggleEl.value = String(data.autoFetchEnabled);
+                    }
+                    if (modeEl && data.fetchMode) {
+                        modeEl.value = data.fetchMode;
+                        this.onModeChange(data.fetchMode);
+                    }
+                    if (riotIdEl && data.cloudRiotId) {
+                        riotIdEl.value = data.cloudRiotId;
+                    }
+                    if (apiKeyEl && data.cloudApiKey) {
+                        apiKeyEl.value = data.cloudApiKey;
+                    }
+                }
+
+                if (statusEl) {
+                    statusEl.textContent = data.statusText || 'Ready';
+                }
 
                 if (badge) {
-                    if (data.clientDetected) {
-                        badge.textContent = 'VALORANT CLIENT DETECTED';
-                        badge.style.background = 'rgba(0, 230, 118, 0.15)';
-                        badge.style.color = '#00e676';
-                    } else if (data.autoFetchEnabled) {
-                        badge.textContent = 'SCANNING FOR GAME...';
-                        badge.style.background = 'rgba(0, 242, 254, 0.15)';
-                        badge.style.color = '#00f2fe';
-                    } else {
+                    if (!data.autoFetchEnabled) {
                         badge.textContent = 'AUTO-FETCH PAUSED';
                         badge.style.background = 'rgba(255, 42, 95, 0.15)';
                         badge.style.color = '#ff2a5f';
+                        badge.style.borderColor = 'rgba(255, 42, 95, 0.3)';
+                    } else if (data.inGame) {
+                        badge.textContent = 'LIVE IN-GAME MATCH';
+                        badge.style.background = 'rgba(0, 230, 118, 0.15)';
+                        badge.style.color = '#00e676';
+                        badge.style.borderColor = 'rgba(0, 230, 118, 0.3)';
+                    } else if (data.gameRunning) {
+                        badge.textContent = 'VALORANT CLIENT ONLINE';
+                        badge.style.background = 'rgba(0, 230, 118, 0.15)';
+                        badge.style.color = '#00e676';
+                        badge.style.borderColor = 'rgba(0, 230, 118, 0.3)';
+                    } else if (data.clientDetected) {
+                        badge.textContent = 'RIOT CLIENT ONLINE (GAME CLOSED)';
+                        badge.style.background = 'rgba(255, 179, 0, 0.15)';
+                        badge.style.color = '#ffb300';
+                        badge.style.borderColor = 'rgba(255, 179, 0, 0.3)';
+                    } else {
+                        badge.textContent = 'SCANNING FOR GAME...';
+                        badge.style.background = 'rgba(0, 242, 254, 0.15)';
+                        badge.style.color = '#00f2fe';
+                        badge.style.borderColor = 'rgba(0, 242, 254, 0.3)';
                     }
                 }
             }
@@ -51,11 +99,13 @@ class AdminSettingsManager {
         const enabled = document.getElementById('auto-fetch-toggle').value;
         const mode = document.getElementById('auto-fetch-mode').value;
         const riotId = document.getElementById('cloud-riot-id').value.trim();
+        const apiKey = document.getElementById('cloud-api-key') ? document.getElementById('cloud-api-key').value.trim() : '';
 
         const formData = new FormData();
         formData.append('enabled', enabled);
         formData.append('mode', mode);
         formData.append('riotId', riotId);
+        formData.append('apiKey', apiKey);
 
         try {
             const res = await fetch('../set_auto_fetch_config', { method: 'POST', body: formData });
@@ -65,7 +115,7 @@ class AdminSettingsManager {
                 } else {
                     alert('Auto-Fetch settings saved!');
                 }
-                this.loadAutoFetchStatus();
+                await this.loadAutoFetchStatus(false);
             }
         } catch (e) {
             console.error(e);

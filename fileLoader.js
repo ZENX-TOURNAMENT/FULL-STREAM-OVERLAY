@@ -56,10 +56,11 @@ class fileLoader {
             const timerData = fs.readFileSync(path.join(this.configDir, 'timer.json'), 'utf8');
             this.config.timer = JSON.parse(timerData);
 
-            // Read Admin Password
+            // Read Admin Password & App Config
             const appConfigData = fs.readFileSync(path.join(this.configDir, 'appConfig.json'), 'utf8');
-            const password = JSON.parse(appConfigData);
-            this._adminPassword = password.admin_key;
+            const appConfig = JSON.parse(appConfigData);
+            this.config.appConfig = appConfig;
+            this._adminPassword = appConfig.admin_key || 'password';
 
             this.isInitialized = true;
             console.info('fileLoader() | All Config Files Loaded into Memory Successfully!');
@@ -87,8 +88,19 @@ class fileLoader {
 
     updateAdminPassword(newPassword) {
         this._adminPassword = newPassword;
-        this.saveStateToFile('appConfig.json', { admin_key: newPassword });
+        if (!this.config.appConfig) this.config.appConfig = {};
+        this.config.appConfig.admin_key = newPassword;
+        this.saveStateToFile('appConfig.json', this.config.appConfig);
         return true;
+    }
+
+    saveAutoFetchConfig(autoFetchConfig) {
+        if (!this.config.appConfig) this.config.appConfig = {};
+        this.config.appConfig.auto_fetch = {
+            ...(this.config.appConfig.auto_fetch || {}),
+            ...autoFetchConfig
+        };
+        this.saveStateToFile('appConfig.json', this.config.appConfig);
     }
 
     generateRandomUserToken() {

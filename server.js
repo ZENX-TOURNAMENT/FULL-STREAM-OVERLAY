@@ -55,6 +55,7 @@ const liveService = new ValorantLiveService(dataBus, io);
 app.set('liveService', liveService);
 
 const routes = require('./routes/routes');
+if (routes.setDataBus) routes.setDataBus(dataBus);
 app.use('/', routes);
 
 // Start server
