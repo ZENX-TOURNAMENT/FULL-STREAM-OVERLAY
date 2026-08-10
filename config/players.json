@@ -1,0 +1,222 @@
+{
+    "player_0": {
+        "token": "asd",
+        "is_registered": true,
+        "last_updated": 1786351006766,
+        "data": {
+            "username": "Player 1",
+            "agent": "Jett",
+            "health": 0,
+            "shield": 0,
+            "ult_points_needed": 7,
+            "ult_points_gained": 3,
+            "weapon": "phantom",
+            "c_util": false,
+            "q_util": true,
+            "e_util": false,
+            "x_util": false,
+            "credits": 1400,
+            "has_spike": true,
+            "is_dead": true,
+            "is_registered": true
+        }
+    },
+    "player_1": {
+        "token": "dsa",
+        "is_registered": true,
+        "last_updated": 1786351006774,
+        "data": {
+            "username": "Player 2",
+            "agent": "Reyna",
+            "health": 50,
+            "shield": 50,
+            "ult_points_needed": 7,
+            "ult_points_gained": 6,
+            "weapon": "vandal",
+            "c_util": true,
+            "q_util": false,
+            "e_util": false,
+            "x_util": false,
+            "credits": 4100,
+            "has_spike": false,
+            "is_dead": false,
+            "is_registered": true
+        }
+    },
+    "player_2": {
+        "token": "",
+        "is_registered": true,
+        "last_updated": 1786351006789,
+        "data": {
+            "username": "Player 3",
+            "agent": "Raze",
+            "health": 58,
+            "shield": 50,
+            "ult_points_needed": 7,
+            "ult_points_gained": 1,
+            "weapon": "spectre",
+            "c_util": true,
+            "q_util": true,
+            "e_util": true,
+            "x_util": false,
+            "credits": 5300,
+            "has_spike": false,
+            "is_dead": false,
+            "is_registered": true
+        }
+    },
+    "player_3": {
+        "token": "",
+        "is_registered": true,
+        "last_updated": 1786351006811,
+        "data": {
+            "username": "Player 4",
+            "agent": "Viper",
+            "health": 60,
+            "shield": 25,
+            "ult_points_needed": 7,
+            "ult_points_gained": 4,
+            "weapon": "vandal",
+            "c_util": false,
+            "q_util": true,
+            "e_util": true,
+            "x_util": false,
+            "credits": 600,
+            "has_spike": false,
+            "is_dead": false,
+            "is_registered": true
+        }
+    },
+    "player_4": {
+        "token": "",
+        "is_registered": true,
+        "last_updated": 1786351006818,
+        "data": {
+            "username": "Player 5",
+            "agent": "Omen",
+            "health": 71,
+            "shield": 50,
+            "ult_points_needed": 7,
+            "ult_points_gained": 4,
+            "weapon": "vandal",
+            "c_util": false,
+            "q_util": true,
+            "e_util": true,
+            "x_util": false,
+            "credits": 200,
+            "has_spike": false,
+            "is_dead": false,
+            "is_registered": true
+        }
+    },
+    "player_5": {
+        "token": "",
+        "is_registered": true,
+        "last_updated": 1786351006852,
+        "data": {
+            "username": "Player 6",
+            "agent": "Brimstone",
+            "health": 96,
+            "shield": 50,
+            "ult_points_needed": 7,
+            "ult_points_gained": 0,
+            "weapon": "vandal",
+            "c_util": true,
+            "q_util": true,
+            "e_util": true,
+            "x_util": false,
+            "credits": 700,
+            "has_spike": false,
+            "is_dead": false,
+            "is_registered": false
+        }
+    },
+    "player_6": {
+        "token": "",
+        "is_registered": true,
+        "last_updated": 1786351006872,
+        "data": {
+            "username": "Player 7",
+            "agent": "Phoenix",
+            "health": 0,
+            "shield": 0,
+            "ult_points_needed": 7,
+            "ult_points_gained": 4,
+            "weapon": "phantom",
+            "c_util": true,
+            "q_util": true,
+            "e_util": true,
+            "x_util": false,
+            "credits": 3900,
+            "has_spike": false,
+            "is_dead": true,
+            "is_registered": false
+        }
+    },
+    "player_7": {
+        "token": "",
+        "is_registered": true,
+        "last_updated": 1786351006903,
+        "data": {
+            "username": "Player 8",
+            "agent": "Sova",
+            "health": 77,
+            "shield": 50,
+            "ult_points_needed": 7,
+            "ult_points_gained": 5,
+            "weapon": "operator",
+            "c_util": false,
+            "q_util": true,
+            "e_util": true,
+            "x_util": false,
+            "credits": 5000,
+            "has_spike": false,
+            "is_dead": false,
+            "is_registered": false
+        }
+    },
+    "player_8": {
+        "token": "",
+        "is_registered": true,
+        "last_updated": 1786351006932,
+        "data": {
+            "username": "Player 9",
+            "agent": "Sage",
+            "health": 61,
+            "shield": 50,
+            "ult_points_needed": 7,
+            "ult_points_gained": 6,
+            "weapon": "spectre",
+            "c_util": true,
+            "q_util": false,
+            "e_util": true,
+            "x_util": false,
+            "credits": 2100,
+            "has_spike": false,
+            "is_dead": false,
+            "is_registered": false
+        }
+    },
+    "player_9": {
+        "token": "",
+        "is_registered": true,
+        "last_updated": 1786351006962,
+        "data": {
+            "username": "Player 10",
+            "agent": "Cypher",
+            "health": 0,
+            "shield": 0,
+            "ult_points_needed": 7,
+            "ult_points_gained": 4,
+            "weapon": "operator",
+            "c_util": false,
+            "q_util": true,
+            "e_util": true,
+            "x_util": false,
+            "credits": 1000,
+            "has_spike": false,
+            "is_dead": true,
+            "is_registered": false
+        }
+    }
+}
