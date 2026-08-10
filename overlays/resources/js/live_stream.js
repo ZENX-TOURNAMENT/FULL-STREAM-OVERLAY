@@ -165,14 +165,19 @@ class LiveStreamOperator {
 
     bindEvents() {
         // Tournament Header save
-        document.getElementById('save-tournament-stage-btn')?.addEventListener('click', async () => {
-            const title = document.getElementById('tournament-stage-input')?.value.trim() || '2026 AMERICAS STAGE 2 : WEEK 4';
+        const saveStageHeader = async () => {
+            const title = document.getElementById('tournament-stage-input')?.value.trim() || '';
             const formData = new FormData();
             formData.append('tournament_stage', title);
             await fetch('../change_game_state', { method: 'POST', body: formData });
             if (typeof successAlertLowerBottom === 'function') {
-                successAlertLowerBottom(`Tournament Header Updated!`);
+                successAlertLowerBottom(title ? `Header Updated: "${title}"` : `Header Cleared!`);
             }
+        };
+
+        document.getElementById('save-tournament-stage-btn')?.addEventListener('click', saveStageHeader);
+        document.getElementById('tournament-stage-input')?.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') saveStageHeader();
         });
 
         // Score adjustments

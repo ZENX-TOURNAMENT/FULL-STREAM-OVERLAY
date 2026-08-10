@@ -1,5 +1,5 @@
 {
-    "tournament_stage": "2026 AMERICAS STAGE 2 : WEEK 4",
+    "tournament_stage": "ZENX SHOWDOWN DAY-3 MATCH 1",
     "round_number": 2,
     "round_over": false,
     "spike_down": false,
@@ -22,9 +22,9 @@
         "won_games": 0
     },
     "team_2": {
-        "abbreviation": "idlisambar",
+        "abbreviation": "IDLISAMBAR",
         "icon_link": "https://res.cloudinary.com/swmd79za/image/upload/v1786179144/IDLISAMBAR_nezidc.png",
-        "team_info": "#1 Seed",
+        "team_info": "",
         "won_games": 0
     },
     "switch_sides": true

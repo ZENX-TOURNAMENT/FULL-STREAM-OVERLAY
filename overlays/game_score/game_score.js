@@ -14,6 +14,7 @@ class helValorantGameScore {
         this.currentWinPanel = null;
 
         //Element Variables
+        this.tournamentStageElement = document.getElementById('tournament-stage');
         this.roundCounterElement = document.getElementById('round-counter');
         this.leftTeamContainer = document.getElementById('left-team');
         this.rightTeamContainer = document.getElementById('right-team');
@@ -38,6 +39,9 @@ class helValorantGameScore {
         if (typeof io !== 'undefined') {
             const socket = io();
             socket.on('stateUpdate', (state) => {
+                if (state.tournament_stage !== undefined) {
+                    this.updateTournamentStage(state.tournament_stage);
+                }
                 if (state.round_number !== undefined && state.round_number !== this.roundCounter) {
                     this.updateRoundNumer(state.round_number);
                 }
@@ -136,11 +140,23 @@ class helValorantGameScore {
                     this.spikeDown = true;
                     this.startSpikeCountDown(45000);
                 }
+                if (json.tournament_stage !== undefined) {
+                    this.updateTournamentStage(json.tournament_stage);
+                }
                 if (json.round_over) {
                     this.updateTeamScores(json.team_1_score, json.team_2_score);
                 }
             }
         } catch (e) {}
+    }
+
+    updateTournamentStage(text) {
+        if (!this.tournamentStageElement) this.tournamentStageElement = document.getElementById('tournament-stage');
+        if (this.tournamentStageElement) {
+            const cleanText = (text || '').trim();
+            this.tournamentStageElement.textContent = cleanText;
+            this.tournamentStageElement.style.display = cleanText ? 'block' : 'none';
+        }
     }
 
     formatTeamDisplay(teamAbbr, teamInfo, teamImgLink) {
