@@ -87,6 +87,7 @@ class ValorantLiveService {
         this.fetchMode = 'local'; // 'local' or 'cloud'
         this.cloudRiotId = '';
         this.cloudApiKey = '';
+        this.lockManualTeamInfo = false; // When true, manual team names & logos won't be overwritten by in-game tags
         
         this.localLockfile = null;
         this.localTokens = null;
@@ -110,19 +111,22 @@ class ValorantLiveService {
             autoFetchEnabled: this.autoFetchEnabled,
             fetchMode: this.fetchMode,
             cloudRiotId: this.cloudRiotId,
+            lockManualTeamInfo: this.lockManualTeamInfo,
             statusText: this.currentStatusText,
             clientDetected: !!this.localLockfile,
             activeMatchId: this.activeMatchId
         };
     }
 
-    updateConfig(enabled, mode, riotId, apiKey) {
+    updateConfig(enabled, mode, riotId, apiKey, lockTeams) {
         if (typeof enabled === 'boolean') this.autoFetchEnabled = enabled;
         if (mode) this.fetchMode = mode;
         if (typeof riotId === 'string') this.cloudRiotId = riotId.trim();
         if (typeof apiKey === 'string') this.cloudApiKey = apiKey.trim();
+        if (typeof lockTeams === 'boolean') this.lockManualTeamInfo = lockTeams;
         return this.getStatus();
     }
+
 
     startLoop() {
         setInterval(async () => {
@@ -242,6 +246,11 @@ class ValorantLiveService {
 
     // Auto Deduce Team 1 & Team 2 from Player IGNs
     autoDeduceTeamsFromNames(names) {
+        if (this.lockManualTeamInfo) {
+            // User opted to lock custom team names & logos
+            return;
+        }
+
         let detectedTags = {};
 
         for (const name of names) {
@@ -372,6 +381,40 @@ class ValorantLiveService {
                 if (this.io) {
                     this.io.emit('stateUpdate', this.dataBus.getGameState());
                 }
+
+                // Parse and update ALL 10 PLAYERS in the match
+                if (match.players && Array.isArray(match.players)) {
+                    let team1Idx = 0;
+                    let team2Idx = 0;
+
+                    for (const p of match.players) {
+                        const isBlue = (p.team === 'Blue' || p.team === 'team_1');
+                        const pObj = {
+                            username: p.name || `Player`,
+                            agent: p.character || 'jett',
+                            health: typeof p.health !== 'undefined' ? p.health : 100,
+                            shield: typeof p.shield !== 'undefined' ? p.shield : 50,
+                            weapon: (p.weapon || 'vandal').toLowerCase(),
+                            credits: p.credits || 800,
+                            ult_points_gained: p.ult_points || 0,
+                            ult_points_needed: 7,
+                            has_spike: !!p.has_spike,
+                            is_dead: (p.health === 0 || !!p.is_dead)
+                        };
+
+                        if (isBlue && team1Idx < 5) {
+                            this.dataBus.updatePlayerDirect(team1Idx, pObj);
+                            team1Idx++;
+                        } else if (!isBlue && team2Idx < 5) {
+                            this.dataBus.updatePlayerDirect(team2Idx + 5, pObj);
+                            team2Idx++;
+                        }
+                    }
+
+                    if (this.io) {
+                        this.io.emit('playerUpdate', this.dataBus.config.players);
+                    }
+                }
             } else {
                 this.currentStatusText = `Cloud API: Player ${this.cloudRiotId} in Lobby / Not in Live Match`;
             }
@@ -379,6 +422,7 @@ class ValorantLiveService {
             this.currentStatusText = `Cloud API query error: ${e.message}`;
         }
     }
+
 
     makeHttpsGet(urlStr, apiKey) {
         return new Promise((resolve, reject) => {

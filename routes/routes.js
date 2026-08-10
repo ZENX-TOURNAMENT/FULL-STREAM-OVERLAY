@@ -192,17 +192,24 @@ router.post('/deauthenticate', (req, res) => {
 });
 
 router.post('/set_team_info', upload.none(), (req, res) => {
-    const { team_1, team_2 } = req.body;
+    const { team_1, team_2, lockTeams } = req.body;
     try {
         let t1 = typeof team_1 === 'string' ? JSON.parse(team_1) : team_1;
         let t2 = typeof team_2 === 'string' ? JSON.parse(team_2) : team_2;
         dataBus.updateTeamInfo(t1, t2);
+
+        const liveService = req.app.get('liveService');
+        if (liveService && typeof lockTeams !== 'undefined') {
+            liveService.lockManualTeamInfo = (lockTeams === 'true' || lockTeams === true);
+        }
+
         emitEvent(req, 'configUpdate', dataBus.getGameConfiguration());
         return res.status(200).send({ status: true });
     } catch (e) {
         return res.status(400).send({ status: false, message: 'Invalid team data' });
     }
 });
+
 
 router.post('/set_map_picks', upload.none(), (req, res) => {
     const { index, map, action } = req.body;

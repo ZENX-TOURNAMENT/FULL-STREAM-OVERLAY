@@ -10,6 +10,7 @@ class adminPreStreamInterface {
         this.team2Icon = document.getElementById('team2-icon');
 
         this.saveTeamsBtn = document.getElementById('save-teams-btn');
+        this.lockTeamsToggle = document.getElementById('lock-manual-teams-toggle');
     }
 
     async init() {
@@ -37,6 +38,15 @@ class adminPreStreamInterface {
                     if (this.team2Icon) this.team2Icon.value = data.team_2.icon_link || '';
                 }
             }
+
+            // Check auto-fetch status for lockTeams
+            const statusRes = await fetch('../get_auto_fetch_status');
+            if (statusRes.status === 200) {
+                const statusData = await statusRes.json();
+                if (this.lockTeamsToggle) {
+                    this.lockTeamsToggle.checked = !!statusData.lockManualTeamInfo;
+                }
+            }
         } catch (err) {
             console.error('Error loading team config:', err);
         }
@@ -57,6 +67,10 @@ class adminPreStreamInterface {
 
         payload.append('team_1', JSON.stringify(team1));
         payload.append('team_2', JSON.stringify(team2));
+        if (this.lockTeamsToggle) {
+            payload.append('lockTeams', this.lockTeamsToggle.checked);
+        }
+
 
         try {
             const res = await fetch('../set_team_info', {
