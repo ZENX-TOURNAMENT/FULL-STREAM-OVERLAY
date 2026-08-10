@@ -1,14 +1,14 @@
 @echo off
-title HEL Valorant Online Tunnel (Qatar to India)
+title HEL Valorant Online Tunnel (Unlimited Hours - Qatar to India)
 color 0b
 echo ===================================================
-echo   VALORANT OVERLAY ONLINE INTERNET TUNNEL
+echo   VALORANT OVERLAY ONLINE TUNNEL (UNLIMITED HOURS)
 echo ===================================================
 echo.
-echo Connecting to instant secure tunnel...
+echo Starting 100%% Free Unlimited Tunnel (No 60-minute limit)...
 echo.
-echo [!] Keep this window OPEN during your stream!
+echo [!] Keep this window OPEN during your broadcast!
 echo [!] Copy the https:// link shown below and send it to your spectator in India.
 echo.
-ssh -p 443 -R0:localhost:25565 -o StrictHostKeyChecking=no a.pinggy.io
+npx --yes localtunnel --port 25565
 pause
