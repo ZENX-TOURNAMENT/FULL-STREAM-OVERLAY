@@ -142,6 +142,9 @@ class LiveStreamOperator {
 
     updateLocalGameState(state) {
         this.gameState = { ...this.gameState, ...state };
+        if (state.tournament_stage && document.getElementById('tournament-stage-input')) {
+            document.getElementById('tournament-stage-input').value = state.tournament_stage;
+        }
         this.renderScoreboardDisplay();
     }
 
@@ -160,6 +163,17 @@ class LiveStreamOperator {
     }
 
     bindEvents() {
+        // Tournament Header save
+        document.getElementById('save-tournament-stage-btn')?.addEventListener('click', async () => {
+            const title = document.getElementById('tournament-stage-input')?.value.trim() || '2026 AMERICAS STAGE 2 : WEEK 4';
+            const formData = new FormData();
+            formData.append('tournament_stage', title);
+            await fetch('../change_game_state', { method: 'POST', body: formData });
+            if (typeof successAlertLowerBottom === 'function') {
+                successAlertLowerBottom(`Tournament Header Updated!`);
+            }
+        });
+
         // Score adjustments
         document.getElementById('t1-score-plus')?.addEventListener('click', () => this.adjustScore('team_1', 1));
         document.getElementById('t1-score-minus')?.addEventListener('click', () => this.adjustScore('team_1', -1));
@@ -448,6 +462,11 @@ class LiveStreamOperator {
                         ${this.weaponsList.map(w => `<option ${(pData.weapon || '').toLowerCase() === w.toLowerCase() ? 'selected' : ''} value="${w}">${w.toUpperCase()}</option>`).join('')}
                     </select>
                 </td>
+                <td style="text-align: center; white-space: nowrap;">
+                    <label style="font-size: 0.72rem; color: #94a3b8; margin-right: 5px; cursor: pointer;">C:<input type="checkbox" ${pData.c_util !== false ? 'checked' : ''} id="p-c-${i}" style="margin-left: 2px;"></label>
+                    <label style="font-size: 0.72rem; color: #94a3b8; margin-right: 5px; cursor: pointer;">Q:<input type="checkbox" ${pData.q_util !== false ? 'checked' : ''} id="p-q-${i}" style="margin-left: 2px;"></label>
+                    <label style="font-size: 0.72rem; color: #94a3b8; cursor: pointer;">E:<input type="checkbox" ${pData.e_util !== false ? 'checked' : ''} id="p-e-${i}" style="margin-left: 2px;"></label>
+                </td>
                 <td><input type="number" min="0" max="12" class="input-field" style="width: 45px;" value="${pData.ult_points_gained ?? 0}" id="p-ult-${i}"></td>
                 <td><input type="number" min="0" max="9000" class="input-field" style="width: 65px;" value="${pData.credits ?? 800}" id="p-credits-${i}"></td>
                 <td style="text-align: center;">
@@ -478,6 +497,9 @@ class LiveStreamOperator {
         const ult = parseInt(document.getElementById(`p-ult-${index}`).value) || 0;
         const credits = parseInt(document.getElementById(`p-credits-${index}`).value) || 0;
         const hasSpike = document.getElementById(`p-spike-${index}`).checked;
+        const cUtil = document.getElementById(`p-c-${index}`) ? document.getElementById(`p-c-${index}`).checked : true;
+        const qUtil = document.getElementById(`p-q-${index}`) ? document.getElementById(`p-q-${index}`).checked : true;
+        const eUtil = document.getElementById(`p-e-${index}`) ? document.getElementById(`p-e-${index}`).checked : true;
 
         const key = `player_${index}`;
         const currentDead = (this.playersData[key] && this.playersData[key].data) ? this.playersData[key].data.is_dead : false;
@@ -493,10 +515,10 @@ class LiveStreamOperator {
             credits: credits,
             has_spike: hasSpike,
             is_dead: (hp <= 0) ? true : currentDead,
-            c_util: true,
-            q_util: true,
-            e_util: true,
-            x_util: false
+            c_util: cUtil,
+            q_util: qUtil,
+            e_util: eUtil,
+            x_util: (ult >= 7)
         };
 
         const formData = new FormData();

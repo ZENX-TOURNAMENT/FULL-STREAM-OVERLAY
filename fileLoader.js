@@ -235,6 +235,7 @@ class fileLoader {
     // --- Game Logic ---
     getGameConfiguration() {
         return {
+            tournament_stage: this.config.gameState.tournament_stage || "2026 AMERICAS STAGE 2 : WEEK 4",
             team_1: this.config.gameState.team_1,
             team_2: this.config.gameState.team_2,
             game_flow: this.config.gameState.game_flow,
@@ -254,6 +255,7 @@ class fileLoader {
             this.config.gameState.round_over = false;
         }
         return {
+            tournament_stage: this.config.gameState.tournament_stage || "2026 AMERICAS STAGE 2 : WEEK 4",
             round_number: this.config.gameState.round_number,
             spike_down: this.config.gameState.spike_down,
             round_over: roundOver,

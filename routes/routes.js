@@ -74,7 +74,7 @@ router.get('/get_game_state', (req, res) => {
 });
 
 router.post('/change_game_state', upload.none(), (req, res) => {
-    const { round_number, team_1_score, team_2_score, spike, switch_sides, round_over } = req.body;
+    const { round_number, team_1_score, team_2_score, spike, switch_sides, round_over, tournament_stage } = req.body;
     
     if (typeof round_number !== 'undefined') dataBus.config.gameState.round_number = parseInt(round_number);
     if (typeof team_1_score !== 'undefined') dataBus.config.gameState.team_1_score = parseInt(team_1_score);
@@ -82,6 +82,7 @@ router.post('/change_game_state', upload.none(), (req, res) => {
     if (typeof spike !== 'undefined') dataBus.config.gameState.spike_down = (spike === 'down' || spike === 'true' || spike === true);
     if (typeof switch_sides !== 'undefined') dataBus.config.gameState.switch_sides = (switch_sides === 'true' || switch_sides === true);
     if (typeof round_over !== 'undefined') dataBus.config.gameState.round_over = (round_over === 'true' || round_over === true);
+    if (typeof tournament_stage !== 'undefined') dataBus.config.gameState.tournament_stage = tournament_stage.trim();
 
     dataBus.saveStateToFile('gameState.json', dataBus.config.gameState);
     emitEvent(req, 'stateUpdate', dataBus.getGameState());
