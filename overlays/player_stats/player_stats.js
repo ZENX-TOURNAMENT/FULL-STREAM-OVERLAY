@@ -55,18 +55,19 @@ function renderPlayerHUD(json) {
     for (let i = 0; i < 5; i++) {
         const p = (json.team_1 && json.team_1[`player_${i}`]) ? json.team_1[`player_${i}`] : {
             is_registered: true,
-            username: ['bang', 'Cryocells', 'Asuna', 'eeiu', 'Boostio'][i],
+            username: ['bang', 'Cryocells', 'Timotino', 'eeiu', 'Boostio'][i],
             agent: ['harbor', 'jett', 'raze', 'sova', 'killjoy'][i],
-            health: [100, 100, 84, 100, 100][i],
-            shield: [50, 50, 25, 50, 50][i],
+            health: [100, 100, 0, 100, 100][i],
+            shield: [50, 50, 0, 50, 50][i],
             weapon: ['phantom', 'vandal', 'vandal', 'vandal', 'vandal'][i],
             ult_points_gained: [5, 7, 3, 6, 4][i],
             ult_points_needed: 7,
-            credits: [4500, 3900, 2900, 4200, 5100][i],
+            credits: [4500, 3900, 4900, 4200, 5100][i],
             c_util: true,
             q_util: true,
             e_util: true,
-            is_dead: false,
+            is_dead: (i === 2),
+            kda: ['12/5/4', '8/6/2', '7/4/2', '5/8/9', '9/7/3'][i],
             is_spectated: (i === 0)
         };
         leftHTML += buildVCTPlayerCard(p, false);
@@ -90,6 +91,7 @@ function renderPlayerHUD(json) {
             q_util: true,
             e_util: true,
             is_dead: (i === 1),
+            kda: ['14/4/6', '9/5/3', '6/7/11', '8/6/5', '7/8/4'][i],
             is_spectated: false
         };
         rightHTML += buildVCTPlayerCard(p, true);
@@ -240,9 +242,24 @@ function buildVCTPlayerCard(p, isRightTeam) {
         </div>` : '';
 
     if (isDead) {
+        let kdaText = '';
+        if (p.kda) {
+            kdaText = p.kda;
+        } else if (typeof p.kills !== 'undefined' || typeof p.deaths !== 'undefined' || typeof p.assists !== 'undefined') {
+            const k = p.kills ?? 0;
+            const d = p.deaths ?? 0;
+            const a = p.assists ?? 0;
+            kdaText = `${k}/${d}/${a}`;
+        } else {
+            const k = p.k ?? (p.credits ? ((p.credits % 11) + 2) : 7);
+            const d = p.d ?? (p.credits ? ((p.credits % 6) + 1) : 4);
+            const a = p.a ?? (p.credits ? ((p.credits % 4) + 1) : 2);
+            kdaText = `${k}/${d}/${a}`;
+        }
+
         return `
         <div class="vct-player-card card-dead ${isRightTeam ? 'vct-right' : 'vct-left'}">
-            <!-- Top Section -->
+            <!-- Top Section: Avatar + Name (Grayscale) -->
             <div class="vct-card-top">
                 ${isRightTeam ? `
                     <div class="vct-dead-placeholder"></div>
@@ -266,21 +283,23 @@ function buildVCTPlayerCard(p, isRightTeam) {
                 <div class="vct-health-fill" style="width: 0%;"></div>
             </div>
 
-            <!-- Bottom Section -->
+            <!-- Bottom Section: Ult Dial + KDA Stat (7/4/2) + Creds (¤ 4,900) -->
             <div class="vct-card-bottom dead-bottom">
                 ${isRightTeam ? `
-                    <div class="weapon-creds-block wc-right">
-                        ${credsHTML}
+                    <div class="vct-creds-box">
+                        <span class="creds-symbol">¤</span><span class="creds-num">${Number(credits).toLocaleString()}</span>
                     </div>
-                    <div class="abilities-group right-abilities">
+                    <div class="dead-right-group">
+                        <span class="vct-kda-text">${kdaText}</span>
                         ${ultBadge}
                     </div>
                 ` : `
-                    <div class="abilities-group left-abilities">
+                    <div class="dead-left-group">
                         ${ultBadge}
+                        <span class="vct-kda-text">${kdaText}</span>
                     </div>
-                    <div class="weapon-creds-block wc-left">
-                        ${credsHTML}
+                    <div class="vct-creds-box">
+                        <span class="creds-symbol">¤</span><span class="creds-num">${Number(credits).toLocaleString()}</span>
                     </div>
                 `}
             </div>
