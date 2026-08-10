@@ -83,7 +83,9 @@ function postToOverlay(endpoint, body) {
             rejectUnauthorized: false,
             headers: {
                 'Content-Type': 'application/x-www-form-urlencoded',
-                'Content-Length': Buffer.byteLength(data)
+                'Content-Length': Buffer.byteLength(data),
+                'User-Agent': 'ValorantLiveBridge/1.0',
+                'Bypass-Tunnel-Reminder': 'true'
             }
         };
 
