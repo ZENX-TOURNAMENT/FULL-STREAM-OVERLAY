@@ -11,6 +11,14 @@ class adminPreStreamInterface {
 
         this.saveTeamsBtn = document.getElementById('save-teams-btn');
         this.lockTeamsToggle = document.getElementById('lock-manual-teams-toggle');
+
+        this.seriesBadge = document.getElementById('current-series-badge');
+        this.bo1Btn = document.getElementById('set-bo1-btn');
+        this.bo3Btn = document.getElementById('set-bo3-btn');
+        this.bo5Btn = document.getElementById('set-bo5-btn');
+
+        this.mapbanInput = document.getElementById('mapban-url-input');
+        this.syncMapbanBtn = document.getElementById('sync-mapban-btn');
     }
 
     async init() {
@@ -19,6 +27,71 @@ class adminPreStreamInterface {
 
         if (this.saveTeamsBtn) {
             this.saveTeamsBtn.addEventListener('click', () => this.saveTeamConfiguration());
+        }
+
+        if (this.bo1Btn) this.bo1Btn.addEventListener('click', () => this.setSeriesFormat('bo1'));
+        if (this.bo3Btn) this.bo3Btn.addEventListener('click', () => this.setSeriesFormat('bo3'));
+        if (this.bo5Btn) this.bo5Btn.addEventListener('click', () => this.setSeriesFormat('bo5'));
+        if (this.syncMapbanBtn) this.syncMapbanBtn.addEventListener('click', () => this.syncMapBan());
+    }
+
+    async syncMapBan() {
+        if (!this.mapbanInput) return;
+        const val = this.mapbanInput.value.trim();
+        if (!val) {
+            if (typeof errorAlertLowerBottom === 'function') {
+                errorAlertLowerBottom('Please enter a MapBan.gg URL or ID');
+            } else {
+                alert('Please enter a MapBan.gg URL or ID');
+            }
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('urlOrId', val);
+
+        try {
+            const res = await fetch('../sync_mapban', {
+                method: 'POST',
+                body: formData
+            });
+            const data = await res.json();
+            if (data.status) {
+                if (typeof successAlertLowerBottom === 'function') {
+                    successAlertLowerBottom(data.message || 'Synced MapBan.gg!');
+                } else {
+                    alert(data.message || 'Synced MapBan.gg!');
+                }
+                await this.constructMapPickInterface();
+            } else {
+                if (typeof errorAlertLowerBottom === 'function') {
+                    errorAlertLowerBottom(data.message || 'Failed to sync from MapBan.gg');
+                }
+            }
+        } catch (e) {
+            console.error('Error syncing mapban:', e);
+        }
+    }
+
+    async setSeriesFormat(format) {
+        const formData = new FormData();
+        formData.append('format', format);
+
+        try {
+            const res = await fetch('../set_series_format', {
+                method: 'POST',
+                body: formData
+            });
+            if (res.status === 200) {
+                const label = format.toUpperCase() === 'BO1' ? 'BO1 (1 GAME)' : (format.toUpperCase() === 'BO5' ? 'BO5 (5 GAMES)' : 'BO3 (3 GAMES)');
+                if (this.seriesBadge) this.seriesBadge.textContent = label;
+                if (typeof successAlertLowerBottom === 'function') {
+                    successAlertLowerBottom(`Match Format set to ${label}!`);
+                }
+                await this.constructMapPickInterface();
+            }
+        } catch (e) {
+            console.error('Error setting series format:', e);
         }
     }
 
@@ -71,7 +144,6 @@ class adminPreStreamInterface {
             payload.append('lockTeams', this.lockTeamsToggle.checked);
         }
 
-
         try {
             const res = await fetch('../set_team_info', {
                 method: 'POST',
@@ -83,6 +155,7 @@ class adminPreStreamInterface {
                 } else {
                     alert('Team Configuration Saved!');
                 }
+                await this.constructMapPickInterface();
             } else {
                 if (typeof errorAlertLowerBottom === 'function') {
                     errorAlertLowerBottom('Failed to save team configuration');
@@ -125,29 +198,37 @@ class adminPreStreamInterface {
             const res = await fetch('../get_map_picks');
             const json = await res.json();
             if (res.status === 200 && json.picks) {
+                const seriesType = (json.series_type || 'bo3').toUpperCase();
+                const label = seriesType === 'BO1' ? 'BO1 (1 GAME)' : (seriesType === 'BO5' ? 'BO5 (5 GAMES)' : 'BO3 (3 GAMES)');
+                if (this.seriesBadge) this.seriesBadge.textContent = label;
+
                 let html = '';
                 const maps = ['abyss', 'ascent', 'bind', 'breeze', 'fracture', 'haven', 'icebox', 'lotus', 'pearl', 'split', 'sunset'];
+                const t1 = (this.team1Abbr && this.team1Abbr.value.trim()) ? this.team1Abbr.value.trim() : (json.teams ? json.teams[0] : 'Team 1');
+                const t2 = (this.team2Abbr && this.team2Abbr.value.trim()) ? this.team2Abbr.value.trim() : (json.teams ? json.teams[1] : 'Team 2');
                 
                 for (let i = 0; i < json.picks.length; i++) {
                     const currentMap = json.picks[i][0];
                     const currentAction = json.picks[i][1];
-                    const pickerTeam = (i % 2 === 0) ? 'Team 1 Pick' : 'Team 2 Pick';
+                    const isLast = (i === json.picks.length - 1);
+                    const teamName = (i % 2 === 0) ? t1 : t2;
+                    const pickerLabel = isLast ? 'Decider Map' : `${teamName} Action`;
 
                     html += `
                     <div style="display: flex; align-items: center; gap: 10px; background: rgba(0,0,0,0.3); padding: 10px 14px; border-radius: var(--radius-md); border: 1px solid var(--panel-border);">
                         <span style="font-weight: 800; color: var(--accent-primary); width: 24px;">#${i + 1}</span>
                         <div style="flex-grow: 1;">
-                            <label style="font-size: 0.75rem; color: var(--text-muted); display: block; margin-bottom: 2px;">Map Name</label>
+                            <label style="font-size: 0.75rem; color: var(--text-muted); display: block; margin-bottom: 2px;">Map</label>
                             <select class="map-pick-map-selector input-field" data-index="${i}">
                                 ${maps.map(m => `<option ${currentMap === m ? 'selected' : ''} value="${m}">${m.toUpperCase()}</option>`).join('')}
                             </select>
                         </div>
-                        <div style="width: 140px;">
-                            <label style="font-size: 0.75rem; color: var(--text-muted); display: block; margin-bottom: 2px;">Veto Action (${pickerTeam})</label>
+                        <div style="width: 150px;">
+                            <label style="font-size: 0.75rem; color: var(--text-muted); display: block; margin-bottom: 2px;">${pickerLabel}</label>
                             <select class="map-pick-action-selector input-field" data-index="${i}">
-                                <option ${currentAction === 'ban' ? 'selected' : ''} value="ban">BAN</option>
-                                <option ${currentAction === 'attack' ? 'selected' : ''} value="attack">PICK (ATTACK)</option>
-                                <option ${currentAction === 'defense' ? 'selected' : ''} value="defense">PICK (DEFENSE)</option>
+                                <option ${currentAction === 'ban' ? 'selected' : ''} value="ban">❌ BAN</option>
+                                <option ${currentAction === 'attack' ? 'selected' : ''} value="attack">🗡️ PICK (ATTACK)</option>
+                                <option ${currentAction === 'defense' ? 'selected' : ''} value="defense">🛡️ PICK (DEFENSE)</option>
                             </select>
                         </div>
                     </div>`;

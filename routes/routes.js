@@ -211,6 +211,92 @@ router.post('/set_team_info', upload.none(), (req, res) => {
 });
 
 
+router.post('/set_series_format', upload.none(), (req, res) => {
+    const { format } = req.body;
+    if (!format) {
+        return res.status(400).send({ status: false, message: 'Missing format' });
+    }
+    const updated = dataBus.setSeriesFormat(format.toLowerCase());
+    emitEvent(req, 'mapPicksUpdate', updated);
+    emitEvent(req, 'configUpdate', dataBus.getGameConfiguration());
+    return res.status(200).send({ status: true, mapPicks: updated, gameConfig: dataBus.getGameConfiguration() });
+});
+
+router.post('/sync_mapban', upload.none(), async (req, res) => {
+    const { urlOrId, jsonData } = req.body;
+
+    if (jsonData) {
+        try {
+            const parsed = typeof jsonData === 'string' ? JSON.parse(jsonData) : jsonData;
+            const updated = dataBus.applyMapBanData(parsed);
+            emitEvent(req, 'mapPicksUpdate', updated);
+            emitEvent(req, 'configUpdate', dataBus.getGameConfiguration());
+            return res.status(200).send({ status: true, message: 'Imported MapBan.gg data successfully', mapPicks: updated });
+        } catch (e) {
+            return res.status(400).send({ status: false, message: 'Invalid JSON data' });
+        }
+    }
+
+    if (!urlOrId || typeof urlOrId !== 'string' || urlOrId.trim() === '') {
+        return res.status(400).send({ status: false, message: 'Please provide a MapBan.gg URL or Room ID' });
+    }
+
+    let input = urlOrId.trim();
+    let match = input.match(/([a-zA-Z0-9]{10,32})/);
+    let viewId = match ? match[1] : input;
+
+    const tryUrls = [
+        `https://api.mapban.gg/v1/ban/log/${viewId}`,
+        `https://api.mapban.gg/v1/ban/view/${viewId}`
+    ];
+
+    const https = require('https');
+    let fetchedData = null;
+
+    for (const targetUrl of tryUrls) {
+        try {
+            const result = await new Promise((resolve) => {
+                const reqHttps = https.get(targetUrl, {
+                    headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)', 'Accept': 'application/json' },
+                    timeout: 4000
+                }, (response) => {
+                    let body = '';
+                    response.on('data', chunk => body += chunk);
+                    response.on('end', () => {
+                        try {
+                            const parsed = JSON.parse(body);
+                            resolve(parsed);
+                        } catch (e) {
+                            resolve(null);
+                        }
+                    });
+                });
+                reqHttps.on('error', () => resolve(null));
+                reqHttps.on('timeout', () => { reqHttps.destroy(); resolve(null); });
+            });
+
+            if (result && (result.log || result.lobby || result.picks || result.teamNames)) {
+                fetchedData = result;
+                break;
+            }
+        } catch (e) {}
+    }
+
+    if (fetchedData) {
+        const updated = dataBus.applyMapBanData(fetchedData);
+        emitEvent(req, 'mapPicksUpdate', updated);
+        emitEvent(req, 'configUpdate', dataBus.getGameConfiguration());
+        return res.status(200).send({ status: true, message: `Synced from MapBan.gg (${viewId})!`, mapPicks: updated });
+    } else {
+        return res.status(200).send({ 
+            status: true, 
+            warning: true, 
+            viewId: viewId,
+            message: `MapBan.gg linked: ID ${viewId}. You can also use Browser Source URL https://www.mapban.gg/ban/view/${viewId} in OBS!` 
+        });
+    }
+});
+
 router.post('/set_map_picks', upload.none(), (req, res) => {
     const { index, map, action } = req.body;
     if (typeof index === 'undefined' || !map || !action) {

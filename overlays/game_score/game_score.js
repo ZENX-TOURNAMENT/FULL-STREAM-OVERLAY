@@ -69,6 +69,10 @@ class helValorantGameScore {
             socket.on('configUpdate', () => {
                 this.init();
             });
+
+            socket.on('mapPicksUpdate', () => {
+                this.init();
+            });
         }
     }
 
