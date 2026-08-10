@@ -121,7 +121,7 @@ function getRiotLockfile() {
                 };
             }
         }
-    } catch (e) {}
+    } catch (e) { }
     return null;
 }
 
@@ -138,11 +138,11 @@ async function bridgeLoop() {
     try {
         // Query local session
         const session = await makeRiotRequest('/chat/v1/session', riotClientConfig.port, riotClientConfig.password);
-        
+
         if (session && session.loaded) {
             console.log(`\n\x1b[32m[Connected]\x1b[0m Logged in as: ${session.game_name}#${session.game_tag}`);
             console.log(`\x1b[32m[Active]\x1b[0m Monitoring live in-game match state...\n`);
-            
+
             // Poll in-game state
             await pollLiveMatch();
         } else {
@@ -160,13 +160,13 @@ async function pollLiveMatch() {
     try {
         // Fetch coregame match info
         const presence = await makeRiotRequest('/chat/v4/presences', riotClientConfig.port, riotClientConfig.password);
-        
+
         if (presence && presence.presences) {
             for (const p of presence.presences) {
                 if (p.product === 'valorant' && p.private) {
                     try {
                         const privateData = JSON.parse(Buffer.from(p.private, 'base64').toString('utf8'));
-                        
+
                         if (privateData.sessionLoopState === 'INGAME') {
                             const partyOwnerMatchScore = privateData.partyOwnerMatchScore || 0;
                             const enemyScore = privateData.partyOwnerMatchScoreEnemy || 0;
@@ -187,11 +187,11 @@ async function pollLiveMatch() {
                         } else {
                             process.stdout.write('\r\x1b[37m[MENUS]\x1b[0m In Lobby / Menus...                                                  ');
                         }
-                    } catch (e) {}
+                    } catch (e) { }
                 }
             }
         }
-    } catch (e) {}
+    } catch (e) { }
 
     setTimeout(pollLiveMatch, 1000);
 }
