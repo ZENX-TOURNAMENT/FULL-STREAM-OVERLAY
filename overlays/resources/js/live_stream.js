@@ -106,6 +106,14 @@ class LiveStreamOperator {
                     document.getElementById('caster2-name').value = casters.caster_2.name || '';
                     document.getElementById('caster2-handle').value = casters.caster_2.handle || '';
                 }
+                if (casters.duration && document.getElementById('caster-duration-select')) {
+                    document.getElementById('caster-duration-select').value = casters.duration;
+                }
+                if (casters.interval && document.getElementById('caster-interval-select')) {
+                    document.getElementById('caster-interval-select').value = casters.interval;
+                }
+                this.casterAutoLoop = !!casters.auto_loop;
+                this.updateCasterLoopButton();
             }
         } catch (e) {}
     }
@@ -177,6 +185,7 @@ class LiveStreamOperator {
         document.getElementById('stop-timer-btn')?.addEventListener('click', () => this.stopTimer());
 
         // Casters
+        document.getElementById('loop-casters-btn')?.addEventListener('click', () => this.toggleCasterLoop());
         document.getElementById('popup-casters-btn')?.addEventListener('click', () => this.popupCasters());
         document.getElementById('save-casters-btn')?.addEventListener('click', () => this.saveCasters(false));
         document.getElementById('toggle-lower-third-btn')?.addEventListener('click', () => this.saveCasters(true));
@@ -294,20 +303,73 @@ class LiveStreamOperator {
         } catch (e) {}
     }
 
+    async toggleCasterLoop() {
+        this.casterAutoLoop = !this.casterAutoLoop;
+        const c1Name = document.getElementById('caster1-name').value.trim();
+        const c1Handle = document.getElementById('caster1-handle').value.trim();
+        const c2Name = document.getElementById('caster2-name').value.trim();
+        const c2Handle = document.getElementById('caster2-handle').value.trim();
+        const durSelect = document.getElementById('caster-duration-select');
+        const dur = durSelect ? parseInt(durSelect.value) : 6000;
+        const intvSelect = document.getElementById('caster-interval-select');
+        const intv = intvSelect ? parseInt(intvSelect.value) : 30000;
+
+        const durSec = Math.round(dur / 1000);
+        const intvSec = Math.round(intv / 1000);
+
+        const formData = new FormData();
+        formData.append('caster_1', JSON.stringify({ name: c1Name, handle: c1Handle }));
+        formData.append('caster_2', JSON.stringify({ name: c2Name, handle: c2Handle }));
+        formData.append('show_lower_third', this.casterAutoLoop);
+        formData.append('auto_loop', this.casterAutoLoop);
+        formData.append('duration', dur);
+        formData.append('interval', intv);
+
+        try {
+            await fetch('../set_casters', { method: 'POST', body: formData });
+            this.updateCasterLoopButton();
+            if (typeof successAlertLowerBottom === 'function') {
+                successAlertLowerBottom(this.casterAutoLoop ? `Auto-Loop Started (${durSec}s every ${intvSec}s)!` : 'Auto-Loop Stopped');
+            }
+        } catch (e) {
+            console.error('Error toggling caster loop:', e);
+        }
+    }
+
+    updateCasterLoopButton() {
+        const btn = document.getElementById('loop-casters-btn');
+        if (!btn) return;
+        if (this.casterAutoLoop) {
+            btn.innerHTML = `<i class="fa-solid fa-repeat"></i> Loop: ON`;
+            btn.style.background = 'rgba(0, 230, 118, 0.2)';
+            btn.style.color = '#00e676';
+            btn.style.borderColor = 'rgba(0, 230, 118, 0.5)';
+        } else {
+            btn.innerHTML = `<i class="fa-solid fa-repeat"></i> Loop: OFF`;
+            btn.style.background = 'rgba(0, 242, 254, 0.15)';
+            btn.style.color = '#00f2fe';
+            btn.style.borderColor = 'rgba(0, 242, 254, 0.3)';
+        }
+    }
+
     async popupCasters() {
         const c1Name = document.getElementById('caster1-name').value.trim();
         const c1Handle = document.getElementById('caster1-handle').value.trim();
         const c2Name = document.getElementById('caster2-name').value.trim();
         const c2Handle = document.getElementById('caster2-handle').value.trim();
         const durSelect = document.getElementById('caster-duration-select');
-        const dur = durSelect ? parseInt(durSelect.value) : 5000;
+        const dur = durSelect ? parseInt(durSelect.value) : 6000;
         const durSec = Math.round(dur / 1000);
 
         const formData = new FormData();
         formData.append('caster_1', JSON.stringify({ name: c1Name, handle: c1Handle }));
         formData.append('caster_2', JSON.stringify({ name: c2Name, handle: c2Handle }));
         formData.append('show_lower_third', true);
+        formData.append('auto_loop', false);
         formData.append('duration', dur);
+
+        this.casterAutoLoop = false;
+        this.updateCasterLoopButton();
 
         try {
             await fetch('../set_casters', { method: 'POST', body: formData });

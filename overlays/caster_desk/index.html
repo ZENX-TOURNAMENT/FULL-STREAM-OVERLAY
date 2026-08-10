@@ -106,6 +106,36 @@
 
     <script>
         let autoHideTimer = null;
+        let autoLoopInterval = null;
+
+        function showPopup(duration = 6000) {
+            const container = document.getElementById('caster-container');
+            if (autoHideTimer) {
+                clearTimeout(autoHideTimer);
+                autoHideTimer = null;
+            }
+            container.classList.add('visible');
+            if (duration > 0) {
+                autoHideTimer = setTimeout(() => {
+                    container.classList.remove('visible');
+                }, duration);
+            }
+        }
+
+        function startLoop(duration = 6000, interval = 30000) {
+            stopLoop();
+            showPopup(duration);
+            autoLoopInterval = setInterval(() => {
+                showPopup(duration);
+            }, interval + duration);
+        }
+
+        function stopLoop() {
+            if (autoLoopInterval) {
+                clearInterval(autoLoopInterval);
+                autoLoopInterval = null;
+            }
+        }
 
         async function fetchCasters() {
             try {
@@ -133,21 +163,22 @@
                 if (c2Handle) c2Handle.textContent = data.caster_2.handle || '';
             }
 
-            if (autoHideTimer) {
-                clearTimeout(autoHideTimer);
-                autoHideTimer = null;
-            }
+            const dur = data.duration || 6000;
+            const intv = data.interval || 30000;
 
-            if (data.show_lower_third) {
-                container.classList.add('visible');
-                const dur = data.duration || 0;
-                if (dur > 0) {
-                    autoHideTimer = setTimeout(() => {
-                        container.classList.remove('visible');
-                    }, dur);
-                }
+            if (data.auto_loop) {
+                startLoop(dur, intv);
             } else {
-                container.classList.remove('visible');
+                stopLoop();
+                if (data.show_lower_third) {
+                    showPopup(dur);
+                } else {
+                    if (autoHideTimer) {
+                        clearTimeout(autoHideTimer);
+                        autoHideTimer = null;
+                    }
+                    container.classList.remove('visible');
+                }
             }
         }
 

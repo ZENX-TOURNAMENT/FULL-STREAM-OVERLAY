@@ -112,14 +112,26 @@
                     <div style="background: rgba(0,0,0,0.25); padding: 14px; border-radius: var(--radius-md); border: 1px solid var(--panel-border);">
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
                             <h5 style="color: var(--text-muted); font-size: 0.8rem;">CASTERS / TALENT LOWER THIRD</h5>
-                            <div style="display: flex; align-items: center; gap: 6px;">
-                                <label style="font-size: 0.75rem; color: var(--text-muted);">Duration:</label>
-                                <select id="caster-duration-select" class="input-field" style="padding: 2px 6px; font-size: 0.75rem; width: 75px;">
-                                    <option value="3000">3 sec</option>
-                                    <option value="5000" selected>5 sec</option>
-                                    <option value="8000">8 sec</option>
-                                    <option value="10000">10 sec</option>
-                                </select>
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <div style="display: flex; align-items: center; gap: 4px;">
+                                    <label style="font-size: 0.72rem; color: var(--text-muted);">Show:</label>
+                                    <select id="caster-duration-select" class="input-field" style="padding: 2px 4px; font-size: 0.72rem; width: 68px;">
+                                        <option value="3000">3s</option>
+                                        <option value="5000">5s</option>
+                                        <option value="6000" selected>6s</option>
+                                        <option value="8000">8s</option>
+                                        <option value="10000">10s</option>
+                                    </select>
+                                </div>
+                                <div style="display: flex; align-items: center; gap: 4px;">
+                                    <label style="font-size: 0.72rem; color: var(--text-muted);">Every:</label>
+                                    <select id="caster-interval-select" class="input-field" style="padding: 2px 4px; font-size: 0.72rem; width: 75px;">
+                                        <option value="15000">15s</option>
+                                        <option value="30000" selected>30s</option>
+                                        <option value="45000">45s</option>
+                                        <option value="60000">60s</option>
+                                    </select>
+                                </div>
                             </div>
                         </div>
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px;">
@@ -132,9 +144,12 @@
                                 <input id="caster2-handle" type="text" class="input-field" style="margin-top: 4px;" placeholder="Handle (e.g. @vanguard)" value="@vanguard">
                             </div>
                         </div>
-                        <div style="display: grid; grid-template-columns: 1.2fr 1fr 1fr; gap: 8px;">
+                        <div style="display: grid; grid-template-columns: 1.3fr 1fr 0.9fr 0.9fr; gap: 6px;">
+                            <button id="loop-casters-btn" class="btn" style="font-weight: 700; background: rgba(0, 242, 254, 0.15); color: #00f2fe; border: 1px solid rgba(0, 242, 254, 0.3);">
+                                <i class="fa-solid fa-repeat"></i> Loop: OFF
+                            </button>
                             <button id="popup-casters-btn" class="btn btn-primary" style="font-weight: 700;">
-                                <i class="fa-solid fa-bolt"></i> Popup (5s)
+                                <i class="fa-solid fa-bolt"></i> Popup (6s)
                             </button>
                             <button id="save-casters-btn" class="btn btn-accent">
                                 <i class="fa-solid fa-floppy-disk"></i> Save

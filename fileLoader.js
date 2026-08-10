@@ -143,10 +143,23 @@ class fileLoader {
     }
 
     // --- Caster Lower Third Logic ---
-    updateCasters(caster1, caster2, showLowerThird) {
+    updateCasters(caster1, caster2, showLowerThird, autoLoop, duration, interval) {
+        if (!this.config.casters) {
+            this.config.casters = {
+                caster_1: { name: 'Ailyrr', handle: '@ailyrr' },
+                caster_2: { name: 'Vanguard', handle: '@vanguard_val' },
+                show_lower_third: false,
+                auto_loop: false,
+                duration: 6000,
+                interval: 30000
+            };
+        }
         if (caster1) this.config.casters.caster_1 = { ...this.config.casters.caster_1, ...caster1 };
         if (caster2) this.config.casters.caster_2 = { ...this.config.casters.caster_2, ...caster2 };
         if (typeof showLowerThird === 'boolean') this.config.casters.show_lower_third = showLowerThird;
+        if (typeof autoLoop === 'boolean') this.config.casters.auto_loop = autoLoop;
+        if (typeof duration === 'number') this.config.casters.duration = duration;
+        if (typeof interval === 'number') this.config.casters.interval = interval;
         return this.config.casters;
     }
 
