@@ -15,7 +15,8 @@ class LiveStreamOperator {
         this.agentsList = [
             'Jett', 'Reyna', 'Raze', 'Viper', 'Omen', 'Brimstone', 'Phoenix', 'Sova',
             'Sage', 'Cypher', 'Killjoy', 'Breach', 'Skye', 'Yoru', 'Astra', 'Kayo',
-            'Chamber', 'Neon', 'Fade', 'Harbor', 'Gekko', 'Deadlock', 'Iso', 'Clove'
+            'Chamber', 'Neon', 'Fade', 'Harbor', 'Gekko', 'Deadlock', 'Iso', 'Clove',
+            'Vyse', 'Tejo', 'Miks', 'Veto', 'Waylay'
         ];
 
         this.weaponsList = [

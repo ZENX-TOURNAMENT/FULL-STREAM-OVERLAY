@@ -28,7 +28,11 @@ const AGENT_ABILITY_DATA = {
     "deadlock": { c: 1, q: 1, e: 1, ult: 7 },
     "iso": { c: 1, q: 2, e: 1, ult: 7 },
     "clove": { c: 1, q: 1, e: 2, ult: 7 },
-    "vyse": { c: 1, q: 2, e: 1, ult: 8 }
+    "vyse": { c: 1, q: 2, e: 1, ult: 8 },
+    "tejo": { c: 1, q: 1, e: 1, ult: 8 },
+    "miks": { c: 1, q: 1, e: 1, ult: 7 },
+    "veto": { c: 1, q: 1, e: 1, ult: 8 },
+    "waylay": { c: 1, q: 1, e: 1, ult: 7 }
 };
 
 async function fetch_player_status_information() {
