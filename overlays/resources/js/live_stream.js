@@ -177,8 +177,17 @@ class LiveStreamOperator {
         document.getElementById('stop-timer-btn')?.addEventListener('click', () => this.stopTimer());
 
         // Casters
+        document.getElementById('popup-casters-btn')?.addEventListener('click', () => this.popupCasters());
         document.getElementById('save-casters-btn')?.addEventListener('click', () => this.saveCasters(false));
         document.getElementById('toggle-lower-third-btn')?.addEventListener('click', () => this.saveCasters(true));
+        
+        document.getElementById('caster-duration-select')?.addEventListener('change', (e) => {
+            const btn = document.getElementById('popup-casters-btn');
+            if (btn) {
+                const sec = Math.round(parseInt(e.target.value) / 1000);
+                btn.innerHTML = `<i class="fa-solid fa-bolt"></i> Popup (${sec}s)`;
+            }
+        });
 
         // Simulation
         document.getElementById('quick-sim-btn')?.addEventListener('click', () => this.runQuickSimulation());
@@ -283,6 +292,32 @@ class LiveStreamOperator {
                 successAlertLowerBottom('Timer Stopped');
             }
         } catch (e) {}
+    }
+
+    async popupCasters() {
+        const c1Name = document.getElementById('caster1-name').value.trim();
+        const c1Handle = document.getElementById('caster1-handle').value.trim();
+        const c2Name = document.getElementById('caster2-name').value.trim();
+        const c2Handle = document.getElementById('caster2-handle').value.trim();
+        const durSelect = document.getElementById('caster-duration-select');
+        const dur = durSelect ? parseInt(durSelect.value) : 5000;
+        const durSec = Math.round(dur / 1000);
+
+        const formData = new FormData();
+        formData.append('caster_1', JSON.stringify({ name: c1Name, handle: c1Handle }));
+        formData.append('caster_2', JSON.stringify({ name: c2Name, handle: c2Handle }));
+        formData.append('show_lower_third', true);
+        formData.append('duration', dur);
+
+        try {
+            await fetch('../set_casters', { method: 'POST', body: formData });
+            this.showLowerThirdState = false;
+            if (typeof successAlertLowerBottom === 'function') {
+                successAlertLowerBottom(`Casters Pop-up Triggered (${durSec}s Auto-Hide)!`);
+            }
+        } catch (e) {
+            console.error('Error triggering casters popup:', e);
+        }
     }
 
     async saveCasters(toggleLowerThird) {

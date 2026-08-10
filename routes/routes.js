@@ -265,13 +265,22 @@ router.get('/get_casters', (req, res) => {
 });
 
 router.post('/set_casters', upload.none(), (req, res) => {
-    const { caster_1, caster_2, show_lower_third } = req.body;
+    const { caster_1, caster_2, show_lower_third, duration } = req.body;
     try {
         let c1 = typeof caster_1 === 'string' ? JSON.parse(caster_1) : caster_1;
         let c2 = typeof caster_2 === 'string' ? JSON.parse(caster_2) : caster_2;
         let show = show_lower_third === 'true' || show_lower_third === true;
+        const dur = duration ? parseInt(duration) : 0;
         const updated = dataBus.updateCasters(c1, c2, show);
-        emitEvent(req, 'castersUpdate', updated);
+        emitEvent(req, 'castersUpdate', { ...updated, duration: dur });
+
+        if (show && dur > 0) {
+            setTimeout(() => {
+                dataBus.updateCasters(null, null, false);
+                emitEvent(req, 'castersUpdate', { ...dataBus.getCasters(), duration: 0 });
+            }, dur);
+        }
+
         return res.status(200).send({ status: true, casters: updated });
     } catch (e) {
         return res.status(400).send({ status: false, message: 'Invalid JSON' });

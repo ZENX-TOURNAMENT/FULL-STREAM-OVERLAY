@@ -105,6 +105,8 @@
     </div>
 
     <script>
+        let autoHideTimer = null;
+
         async function fetchCasters() {
             try {
                 const res = await fetch('../get_casters');
@@ -131,8 +133,19 @@
                 if (c2Handle) c2Handle.textContent = data.caster_2.handle || '';
             }
 
+            if (autoHideTimer) {
+                clearTimeout(autoHideTimer);
+                autoHideTimer = null;
+            }
+
             if (data.show_lower_third) {
                 container.classList.add('visible');
+                const dur = data.duration || 0;
+                if (dur > 0) {
+                    autoHideTimer = setTimeout(() => {
+                        container.classList.remove('visible');
+                    }, dur);
+                }
             } else {
                 container.classList.remove('visible');
             }
